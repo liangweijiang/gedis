@@ -3,8 +3,8 @@ package tcpserver
 import (
 	"context"
 	"errors"
-	"github.com/liangweijiang/gedis/pkg/interfaces/network/tcp"
-	"github.com/liangweijiang/gedis/pkg/lib/logger"
+	"github.com/liangweijiang/gedis/interfaces/network/tcp"
+	"github.com/liangweijiang/gedis/lib/logger"
 	"net"
 	"os"
 	"os/signal"

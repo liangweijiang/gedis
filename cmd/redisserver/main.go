@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/liangweijiang/gedis/pkg/lib/logger"
-	"github.com/liangweijiang/gedis/pkg/network/tcpserver"
+	"github.com/liangweijiang/gedis/lib/logger"
+	tcpserver2 "github.com/liangweijiang/gedis/network/tcpserver"
 )
 
 func main() {
@@ -17,7 +17,7 @@ func main() {
 	logger.Info("success")
 	logger.Info("success")
 	logger.Info("success")
-	s := tcpserver.NewTcpSever(&tcpserver.Config{Address: "0.0.0.0:9999"}, tcpserver.NewEchoHandler())
+	s := tcpserver2.NewTcpSever(&tcpserver2.Config{Address: "0.0.0.0:9999"}, tcpserver2.NewEchoHandler())
 	err := s.Start()
 	if err != nil {
 		panic(err)

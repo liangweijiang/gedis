@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/liangweijiang/gedis/pkg/lib/utils"
+	"github.com/liangweijiang/gedis/lib/utils"
 	"io"
 	"log"
 	"os"

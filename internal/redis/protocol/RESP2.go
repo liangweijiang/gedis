@@ -1,20 +1,21 @@
-// Package protocol provides functionalities related to communication protocols.
+// Package protocol 提供了与通信协议相关的功能。
 //
-// Contains the implementation of RESP2 (Redis Serialization Protocol version 2),
-// which is a simple, line-based protocol for communication between Redis clients and servers.
-// It defines various reply types that conform to the RESP2 specification and provides methods
-// to serialize these replies into byte sequences suitable for network transmission.
+// 包含了 RESP2（Redis 序列化协议版本 2）的实现，这是一个简单、基于行的协议，用于 Redis 客户端和服务器之间的通信。
+// 它定义了符合 RESP2 规范的各种回复类型，并提供了将这些回复序列化为适合网络传输的字节序列的方法
 package protocol
 
 import (
 	"bytes"
+	"github.com/liangweijiang/gedis/interfaces/redis"
 	"strconv"
 )
 
 var (
 
 	// CRLF is the line separator of redis serialization protocol
-	CRLF = "\r\n"
+	CRLF            = "\r\n"
+	nullBulkBytes   = []byte("$-1\r\n")
+	emptyArrayBytes = []byte("*0\r\n")
 )
 
 // SimpleStringReply Simple strings are encoded as a plus (+) character, followed by a string.
@@ -85,6 +86,9 @@ func NewBulkStringReply(bytes []byte) *BulkStringReply {
 }
 
 func (r *BulkStringReply) ToBytes() []byte {
+	if r.Bytes == nil || len(r.Bytes) == 0 {
+		return nullBulkBytes
+	}
 	return []byte("$" + strconv.Itoa(len(r.Bytes)) + CRLF + string(r.Bytes) + CRLF)
 }
 
@@ -93,44 +97,32 @@ func (r *BulkStringReply) ToBytes() []byte {
 //
 //	base format:: *<number-of-elements>\r\n<element-1>...<element-n>
 type ArrayReply struct {
-	BytesArr [][]byte
+	Replys []redis.Reply
 }
 
-func NewArrayReply(bytesArr [][]byte) *ArrayReply {
+func NewArrayReply(reply []redis.Reply) *ArrayReply {
 	return &ArrayReply{
-		BytesArr: bytesArr,
+		Replys: reply,
 	}
 }
 
 func (r *ArrayReply) ToBytes() []byte {
+	if r.Replys == nil || len(r.Replys) == 0 {
+		return emptyArrayBytes
+	}
 	var buf bytes.Buffer
-	bytesArrLen := len(r.BytesArr)
+	bytesArrLen := len(r.Replys)
 	// * + number-of-elements + "\r\n"
 	bufSize := 1 + len(strconv.Itoa(bytesArrLen)) + 2
-	for _, bs := range r.BytesArr {
-		if len(bs) == 0 {
-			// $-1\r\n
-			bufSize += 3 + 2
-		} else {
-			// $<length>\r\n<data>\r\n
-			bufSize += 1 + len(strconv.Itoa(len(bs))) + 2 + len(bs) + 2
-		}
+	for _, reply := range r.Replys {
+		bufSize += len(reply.ToBytes())
 	}
 	buf.Grow(bufSize)
 	buf.WriteString("*")
 	buf.WriteString(strconv.Itoa(bytesArrLen))
 	buf.WriteString(CRLF)
-	for _, bs := range r.BytesArr {
-		if len(bs) == 0 {
-			buf.WriteString("$-1")
-			buf.WriteString(CRLF)
-		} else {
-			buf.WriteString("$")
-			buf.WriteString(strconv.Itoa(len(bs)))
-			buf.WriteString(CRLF)
-			buf.Write(bs)
-			buf.WriteString(CRLF)
-		}
+	for _, reply := range r.Replys {
+		buf.Write(reply.ToBytes())
 	}
 	return buf.Bytes()
 }
