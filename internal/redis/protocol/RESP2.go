@@ -1,7 +1,7 @@
-// Package protocol 提供了与通信协议相关的功能。
+// Package protocol provides functionality related to communication protocols.
 //
-// 包含了 RESP2（Redis 序列化协议版本 2）的实现，这是一个简单、基于行的协议，用于 Redis 客户端和服务器之间的通信。
-// 它定义了符合 RESP2 规范的各种回复类型，并提供了将这些回复序列化为适合网络传输的字节序列的方法
+// It includes the implementation of RESP2 (Redis Serialization Protocol version 2), a simple, line-based protocol used for communication between Redis clients and servers.
+// It defines various reply types conforming to the RESP2 specification and provides methods to serialize these replies into byte sequences suitable for network transmission.
 package protocol
 
 import (
