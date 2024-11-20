@@ -3,12 +3,13 @@ package dict
 import (
 	"github.com/liangweijiang/gedis/lib/utils"
 	"math"
+	"math/rand"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
-// ConcurrentDict is a concurrent dictionary structure that supports high-concurrency operations.
-// It divides the dictionary into multiple shards to allow concurrent access, improving performance.
+// ConcurrentDict is a concurrent dictionary structure that supports high-concurrency read and write operations by dividing the dictionary into multiple shards.
 // Reference: https://developer.aliyun.com/article/1417528
 type ConcurrentDict struct {
 	shards     []*shardMap
@@ -20,6 +21,20 @@ type ConcurrentDict struct {
 type shardMap struct {
 	m     map[string]interface{}
 	mutex sync.RWMutex
+}
+
+// RandomKey returns a random key from the shard. If the shard is empty, it returns an empty string.
+func (shard *shardMap) RandomKey() string {
+	if shard == nil {
+		panic("shard is nil")
+	}
+	shard.mutex.RLock()
+	defer shard.mutex.RUnlock()
+
+	for key := range shard.m {
+		return key
+	}
+	return ""
 }
 
 // computeCapacity calculates the capacity of the shard, ensuring it is not less than 16 and is a power of 2.
@@ -94,6 +109,30 @@ func (dict *ConcurrentDict) Put(key string, val interface{}) (result int) {
 	return 1
 }
 
+// PutIfAbsent inserts a key-value pair into the dictionary only if the key does not already exist.
+func (dict *ConcurrentDict) PutIfAbsent(key string, val interface{}) (result int) {
+	shard := dict.getShard(key)
+	shard.mutex.Lock()
+	defer shard.mutex.Unlock()
+	if _, ok := shard.m[key]; !ok {
+		return 0
+	}
+	shard.m[key] = val
+	return 1
+}
+
+// PutIfExists inserts a key-value pair into the dictionary only if the key already exists.
+func (dict *ConcurrentDict) PutIfExists(key string, val interface{}) (result int) {
+	shard := dict.getShard(key)
+	shard.mutex.Lock()
+	defer shard.mutex.Unlock()
+	if _, ok := shard.m[key]; !ok {
+		shard.m[key] = val
+		return 1
+	}
+	return 0
+}
+
 // Keys returns all keys in the dictionary.
 func (dict *ConcurrentDict) Keys() []string {
 	if dict == nil {
@@ -151,6 +190,60 @@ func (dict *ConcurrentDict) Foreach(consumer func(key string, val interface{}) b
 			break
 		}
 	}
+}
+
+// RandomKeys returns a specified number of random keys from the dictionary. If the limit is greater than or equal to the number of elements in the dictionary, it returns all keys.
+func (dict *ConcurrentDict) RandomKeys(limit int) []string {
+	if dict == nil {
+		panic("dict is nil")
+	}
+	if limit >= int(dict.count) {
+		return dict.Keys()
+	}
+	result := make([]string, limit)
+	randR := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := 0; i < limit; {
+		shard := dict.shards[randR.Intn(int(dict.shardCount))]
+		key := shard.RandomKey()
+		if key != "" {
+			result[i] = key
+			i++
+		}
+	}
+	return result
+}
+
+// RandomDistinctKeys returns a specified number of distinct random keys from the dictionary. If the limit is greater than or equal to the number of elements in the dictionary, it returns all keys.
+func (dict *ConcurrentDict) RandomDistinctKeys(limit int) []string {
+	if dict == nil {
+		panic("dict is nil")
+	}
+	if limit >= int(dict.count) {
+		return dict.Keys()
+	}
+	result := make([]string, limit)
+	distinctKeys := make(map[string]struct{})
+	randR := rand.New(rand.NewSource(time.Now().UnixNano()))
+	for i := 0; i < limit; {
+		shard := dict.shards[randR.Intn(int(dict.shardCount))]
+		key := shard.RandomKey()
+		if key != "" {
+			if _, ok := distinctKeys[key]; !ok {
+				distinctKeys[key] = struct{}{}
+				result[i] = key
+				i++
+			}
+
+		}
+	}
+
+	return result
+}
+
+// DictScan is used for incremental iteration of dictionary elements. (Not implemented)
+func (dict *ConcurrentDict) DictScan(cursor int, count int, pattern string) ([][]byte, int) {
+	//TODO implement me
+	panic("implement me")
 }
 
 // addCount atomically increments the element count of the dictionary.

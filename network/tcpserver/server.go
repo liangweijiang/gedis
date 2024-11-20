@@ -14,10 +14,12 @@ import (
 	"time"
 )
 
+// Config represents the configuration for the TCP server.
 type Config struct {
 	Address string
 }
 
+// TcpServer represents the TCP server, responsible for listening and handling client connections.
 type TcpServer struct {
 	listener    net.Listener
 	conf        *Config
@@ -28,6 +30,7 @@ type TcpServer struct {
 	tcpHandler  tcp.Handler
 }
 
+// NewTcpSever creates and returns a new instance of TcpServer.
 func NewTcpSever(conf *Config, handler tcp.Handler) *TcpServer {
 	return &TcpServer{
 		conf:        conf,
@@ -38,6 +41,7 @@ func NewTcpSever(conf *Config, handler tcp.Handler) *TcpServer {
 	}
 }
 
+// Start initializes the server and begins listening for incoming connections.
 func (s *TcpServer) Start() error {
 	signal.Notify(s.quitCh, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
 
@@ -51,6 +55,7 @@ func (s *TcpServer) Start() error {
 	return nil
 }
 
+// listenAndServe listens for incoming connections and handles them.
 func (s *TcpServer) listenAndServe() {
 	go func() {
 		select {
@@ -78,6 +83,7 @@ func (s *TcpServer) listenAndServe() {
 	s.waitDone.Wait()
 }
 
+// handleConn handles the accepted client connection.
 func (s *TcpServer) handleConn(conn net.Conn) {
 	atomic.AddInt64(&s.clientCount, 1)
 	s.waitDone.Add(1)

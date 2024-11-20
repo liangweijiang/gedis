@@ -1,36 +1,88 @@
 package datastruct
 
-// Dict 接口定义了一个简单的键值对存储结构的操作方法。
-// 它允许用户存储和检索与字符串键关联的值。
+// Dict interface defines a simple key-value storage structure and its operation methods.
+// It allows users to store and retrieve values associated with string keys.
 type Dict interface {
-	// Get 方法根据键获取对应的值。
-	// 它接受一个字符串类型的键，返回值和一个布尔值指示键是否存在。
-	// 如果键存在，返回对应的值和true；如果键不存在，返回nil和false。
+	// Get retrieves the value associated with the given key.
+	// It accepts a string key and returns the value along with a boolean indicating if the key exists.
+	// If the key exists, it returns the corresponding value and true; otherwise, it returns nil and false.
 	Get(key string) (val interface{}, exists bool)
 
-	// Len 方法返回当前存储结构中键值对的数量。
+	// Len returns the number of key-value pairs currently stored in the structure.
 	Len() int
 
-	// Put 方法向存储结构中插入一个键值对。
-	// 如果键已存在，它会用新值覆盖旧值，并返回旧值。
-	// 参数key是字符串类型的键，val是任意类型的值。
-	// 返回值result是被覆盖的旧值的类型。
+	// Put inserts a key-value pair into the storage structure.
+	// If the key already exists, it overwrites the old value and returns the old value.
+	// Parameters:
+	//   key - The string key.
+	//   val - The value of any type.
+	// Returns:
+	//   result - The type of the old value that was overwritten.
 	Put(key string, val interface{}) (result int)
 
-	// Keys 方法返回当前存储结构中所有键的列表。
-	// 返回值是一个字符串切片，包含所有的键。
+	// PutIfAbsent attempts to insert a key-value pair into the cache only if the key does not already exist.
+	// Parameters:
+	//   key - The key to insert.
+	//   val - The corresponding value.
+	// Returns:
+	//   result - Indicates the result of the insertion operation, possibly used to indicate status or the number of entries affected.
+	PutIfAbsent(key string, val interface{}) (result int)
+
+	// PutIfExists inserts a key-value pair into the cache only if the key already exists.
+	// Parameters:
+	//   key - The key to insert.
+	//   val - The corresponding value.
+	// Returns:
+	//   result - Indicates the result of the insertion operation, possibly used to indicate status or the number of entries affected.
+	PutIfExists(key string, val interface{}) (result int)
+
+	// Keys returns a list of all keys currently stored in the structure.
+	// Returns:
+	//   A slice of strings containing all the keys.
 	Keys() []string
 
-	// Remove 方法从存储结构中移除指定键的键值对。
-	// 参数key是字符串类型的键。
-	// 返回值val是被移除的值，result表示移除操作的结果。
+	// Remove removes the key-value pair associated with the specified key from the storage structure.
+	// Parameters:
+	//   key - The string key.
+	// Returns:
+	//   val - The removed value.
+	//   result - Indicates the result of the removal operation.
 	Remove(key string) (val interface{}, result int)
 
-	// Clear 方法清空存储结构中的所有键值对。
+	// Clear empties the storage structure by removing all key-value pairs.
 	Clear()
 
-	// Foreach 方法遍历存储结构中的所有键值对，并对每个键值对执行给定的函数f。
-	// 函数f接受键和值作为参数，并返回一个布尔值。
-	// 如果f返回false，遍历会提前终止。
-	Foreach(f func(key string, val interface{}) bool)
+	// Foreach iterates over all key-value pairs in the storage structure and executes the given function f for each pair.
+	// Parameters:
+	//   consumer - A function that takes a key and value as parameters and returns a boolean.
+	//              If f returns false, the iteration is terminated early.
+	Foreach(consumer func(key string, val interface{}) bool)
+
+	// RandomKeys generates and returns a specified number of random keys.
+	// Parameters:
+	//   limit - The number of random keys to generate.
+	// Returns:
+	//   A slice of strings containing the generated random keys.
+	RandomKeys(limit int) []string
+
+	// RandomDistinctKeys generates and returns a specified number of unique random keys.
+	// Parameters:
+	//   limit - The number of unique random keys to generate.
+	// Returns:
+	//   A slice of strings containing the generated unique random keys.
+	// Note:
+	//   Ensures that the returned keys are unique, suitable for scenarios requiring unique keys.
+	RandomDistinctKeys(limit int) []string
+
+	// DictScan scans the dictionary and returns keys matching the specified pattern along with the next cursor.
+	// Parameters:
+	//   cursor - The starting cursor for the scan.
+	//   count - The number of elements to return per scan.
+	//   pattern - The pattern to filter keys.
+	// Returns:
+	//   A slice of byte slices containing the keys that match the pattern.
+	//   An integer representing the next cursor for the scan.
+	// Note:
+	//   Supports incremental scanning, suitable for efficient traversal of large datasets.
+	DictScan(cursor int, count int, pattern string) ([][]byte, int)
 }
