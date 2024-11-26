@@ -2,6 +2,7 @@ package sortedset
 
 import (
 	"fmt"
+	"github.com/liangweijiang/gedis/interfaces/datastruct"
 	"math"
 	"math/bits"
 	"math/rand"
@@ -12,33 +13,28 @@ const (
 	maxLevel = 16
 )
 
-type element struct {
-	Score  float64
-	Member string
-}
-
-type node struct {
-	element
-	backward *node
+type Node struct {
+	datastruct.Element
+	backward *Node
 	levels   []*levelNode
 }
 
 type levelNode struct {
-	forward *node
+	forward *Node
 	// span 记录到下一个节点跨度
 	span int64
 }
 
 type SkipList struct {
-	head   *node
-	tail   *node
+	head   *Node
+	tail   *Node
 	level  int
 	length int64
 }
 
-func newSkipListNode(score float64, member string, level int) *node {
-	n := &node{
-		element: element{
+func newSkipListNode(score float64, member string, level int) *Node {
+	n := &Node{
+		Element: datastruct.Element{
 			Score:  score,
 			Member: member,
 		},
@@ -65,7 +61,7 @@ func randomLevel() int {
 }
 
 func (sl *SkipList) Insert(member string, score float64) {
-	update := make([]*node, maxLevel)
+	update := make([]*Node, maxLevel)
 	// rank 记录头节点到插入节点的跨度
 	rank := make([]int64, maxLevel)
 
@@ -83,7 +79,6 @@ func (sl *SkipList) Insert(member string, score float64) {
 		}
 		update[i] = cur
 	}
-	fmt.Println("level: ", sl.level)
 	level := randomLevel()
 	if level > sl.level {
 		for i := sl.level; i < level; i++ {
@@ -116,7 +111,7 @@ func (sl *SkipList) Insert(member string, score float64) {
 }
 
 func (sl *SkipList) Remove(member string, score float64) bool {
-	update := make([]*node, maxLevel)
+	update := make([]*Node, maxLevel)
 	cur := sl.head
 	for i := sl.level - 1; i >= 0; i-- {
 		for cur.levels[i].forward != nil && (cur.levels[i].forward.Score < score ||
@@ -133,7 +128,122 @@ func (sl *SkipList) Remove(member string, score float64) bool {
 	return false
 }
 
-func (sl *SkipList) removeNode(cur *node, update []*node) {
+func (sl *SkipList) GetRank(member string, score float64) int64 {
+	var rank int64
+	cur := sl.head
+	for i := sl.level - 1; i >= 0; i-- {
+		for cur.levels[i].forward != nil && (cur.levels[i].forward.Score < score ||
+			(cur.levels[i].forward.Score == score && cur.levels[i].forward.Member <= member)) {
+			rank += cur.levels[i].span
+			cur = cur.levels[i].forward
+		}
+		if cur.Member == member && cur.Score == score {
+			return rank
+		}
+	}
+	return 0
+}
+
+func (sl *SkipList) GetByRank(rank int64) *Node {
+	var r int64
+	cur := sl.head
+	for i := sl.level - 1; i >= 0; i-- {
+		for cur.levels[i].forward != nil && r+cur.levels[i].span <= rank {
+			r += cur.levels[i].span
+			cur = cur.levels[i].forward
+		}
+		if r == rank {
+			return cur
+		}
+	}
+	return nil
+}
+
+func (sl *SkipList) GetFirstInRange(min datastruct.Border, max datastruct.Border) *Node {
+	if !sl.hasInRange(min, max) {
+		return nil
+	}
+	cur := sl.head
+	for i := sl.level - 1; i >= 0; i-- {
+		for cur.levels[i].forward != nil && !min.Less(&cur.levels[i].forward.Element) {
+			cur = cur.levels[i].forward
+		}
+	}
+	cur = cur.levels[0].forward
+	if !max.Greater(&cur.Element) {
+		return nil
+	}
+	return cur
+}
+
+func (sl *SkipList) GetLastInRange(min datastruct.Border, max datastruct.Border) *Node {
+	if !sl.hasInRange(min, max) {
+		return nil
+	}
+	cur := sl.head
+	for i := sl.level - 1; i >= 0; i-- {
+		for cur.levels[i].forward != nil && max.Greater(&cur.levels[i].forward.Element) {
+			cur = cur.levels[i].forward
+		}
+	}
+	if !min.Less(&cur.Element) {
+		return nil
+	}
+	return cur
+}
+
+func (sl *SkipList) RemoveRange(min datastruct.Border, max datastruct.Border, limit int) (removed []*datastruct.Element) {
+	update := make([]*Node, maxLevel)
+	removed = make([]*datastruct.Element, 0)
+	cur := sl.head
+	for i := sl.level - 1; i >= 0; i-- {
+		for cur.levels[i].forward != nil && !min.Less(&cur.levels[i].forward.Element) {
+			cur = cur.levels[i].forward
+		}
+		update[i] = cur
+	}
+	cur = cur.levels[0].forward
+	for cur != nil {
+		if !max.Greater(&cur.Element) {
+			break
+		}
+		next := cur.levels[0].forward
+		removedElement := cur.Element
+		removed = append(removed, &removedElement)
+		sl.removeNode(cur, update)
+		if limit > 0 && len(removed) == limit {
+			break
+		}
+		cur = next
+	}
+	return removed
+}
+func (sl *SkipList) RemoveRangeByRank(start int64, stop int64) (removed []*datastruct.Element) {
+	var r int64
+	update := make([]*Node, maxLevel)
+	removed = make([]*datastruct.Element, 0)
+	cur := sl.head
+	for i := sl.level - 1; i >= 0; i-- {
+		for cur.levels[i].forward != nil && r+cur.levels[i].span < start {
+			r += cur.levels[i].span
+			cur = cur.levels[i].forward
+		}
+		update[i] = cur
+	}
+	r++
+	cur = cur.levels[0].forward
+	for cur != nil && r < start {
+		next := cur.levels[0].forward
+		removedElement := cur.Element
+		removed = append(removed, &removedElement)
+		sl.removeNode(cur, update)
+		cur = next
+		r++
+	}
+	return removed
+}
+
+func (sl *SkipList) removeNode(cur *Node, update []*Node) {
 	for i := 0; i < sl.level; i++ {
 		if update[i].levels[i].forward == cur {
 			update[i].levels[i].forward = cur.levels[i].forward
@@ -151,6 +261,21 @@ func (sl *SkipList) removeNode(cur *node, update []*node) {
 		sl.level--
 	}
 	sl.length--
+}
+
+func (sl *SkipList) hasInRange(min, max datastruct.Border) bool {
+	if min.IsIntersected(max) {
+		return false
+	}
+	tail := sl.tail
+	if tail == nil || !min.Less(&tail.Element) {
+		return false
+	}
+	first := sl.head.levels[0].forward
+	if first == nil || !max.Greater(&first.Element) {
+		return false
+	}
+	return true
 }
 
 func (sl *SkipList) String() string {

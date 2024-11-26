@@ -15,8 +15,10 @@ import (
 	"time"
 )
 
+// logLevel defines the log levels
 type logLevel int
 
+// Log level constants
 const (
 	DEBUG logLevel = iota
 	INFO
@@ -25,6 +27,7 @@ const (
 	FATAL
 )
 
+// Color constants for terminal output
 const (
 	Reset  = "\033[0m"
 	Red    = "\033[31m"
@@ -33,41 +36,48 @@ const (
 	Yellow = "\033[33m"
 )
 
+// Default values for logger configuration
 const (
 	defaultCallerDepth = 2
 	maxBufferSize      = 1e5
 	defaultDateFormat  = "2006-01-02"
 )
 
+// Level flags for log messages
 var levelFlags = []string{"DEBUG", "INFO", "WARN", "ERROR", "FATAL"}
 
+// Settings holds the configuration for the logger
 type Settings struct {
-	Path      string
-	Name      string
-	WithColor bool
-	WithJson  bool
+	Path      string // Path to the log files
+	Name      string // Name of the log file
+	WithColor bool   // Whether to use colored output
+	WithJson  bool   // Whether to use JSON format for logs
 }
 
+// loggerEntry represents a single log entry
 type loggerEntry struct {
-	level   logLevel
-	content string
+	level   logLevel // Log level of the entry
+	content string   // Content of the log message
 }
 
+// jsonContent represents the structure of a JSON log entry
 type jsonContent struct {
-	Level   string `json:"level"`
-	Caller  string `json:"caller,omitempty"`
-	Content string `json:"content"`
+	Level   string `json:"level"`   // Log level
+	Caller  string `json:"caller"`  // Caller information
+	Content string `json:"content"` // Log message content
 }
 
+// Logger is the main logger struct
 type Logger struct {
-	ctx       context.Context
-	withJson  bool
-	logFile   *os.File
-	logger    *log.Logger
-	entryChan chan *loggerEntry
-	entryPool *sync.Pool
+	ctx       context.Context   // Context for the logger
+	withJson  bool              // Whether to use JSON format
+	logFile   *os.File          // File handle for the log file
+	logger    *log.Logger       // Standard library logger
+	entryChan chan *loggerEntry // Channel for log entries
+	entryPool *sync.Pool        // Pool for log entries
 }
 
+// WriteContent writes a log message with the given level and content
 func (l *Logger) WriteContent(level logLevel, callerDepth int, content string) {
 	var formattedContent string
 	_, file, line, ok := runtime.Caller(callerDepth)
@@ -93,6 +103,7 @@ func (l *Logger) WriteContent(level logLevel, callerDepth int, content string) {
 	l.entryChan <- entry
 }
 
+// formatJsonLog formats the log message as JSON
 func (l *Logger) formatJsonLog(level logLevel, callerInfo, content string) string {
 	msg := jsonContent{
 		Level:   levelFlags[level],
@@ -103,8 +114,10 @@ func (l *Logger) formatJsonLog(level logLevel, callerInfo, content string) strin
 	return string(msgB)
 }
 
+// defaultLogger is the default logger instance
 var defaultLogger = newStdLogger()
 
+// Setup initializes the logger with the given settings
 func Setup(settings Settings) {
 	logger, err := newFileLogger(settings)
 	if err != nil {
@@ -113,6 +126,7 @@ func Setup(settings Settings) {
 	defaultLogger = logger
 }
 
+// newStdLogger creates a new standard logger that outputs to stdout
 func newStdLogger() *Logger {
 	stdLogger := &Logger{
 		logFile:   nil,
@@ -144,6 +158,7 @@ func newStdLogger() *Logger {
 	return stdLogger
 }
 
+// newFileLogger creates a new logger that outputs to a file
 func newFileLogger(settings Settings) (*Logger, error) {
 	fileName := fmt.Sprintf("%s-%s.log", settings.Name, time.Now().Format(defaultDateFormat))
 	logFile, err := utils.MustOpen(settings.Path, fileName)
@@ -193,52 +208,62 @@ func newFileLogger(settings Settings) (*Logger, error) {
 	return logger, nil
 }
 
+// Debug logs a debug message
 func Debug(v ...interface{}) {
 	content := fmt.Sprintln(v)
 	defaultLogger.WriteContent(DEBUG, defaultCallerDepth, content)
 }
 
+// Debugf logs a formatted debug message
 func Debugf(format string, v ...interface{}) {
 	content := fmt.Sprintf(format, v)
 	defaultLogger.WriteContent(DEBUG, defaultCallerDepth, content)
 }
 
+// Info logs an info message
 func Info(v ...interface{}) {
 	content := fmt.Sprintln(v)
 	defaultLogger.WriteContent(INFO, defaultCallerDepth, content)
 }
 
+// Infof logs a formatted info message
 func Infof(format string, v ...interface{}) {
 	content := fmt.Sprintf(format, v)
 	defaultLogger.WriteContent(INFO, defaultCallerDepth, content)
 }
 
+// Warn logs a warning message
 func Warn(v ...interface{}) {
 	content := fmt.Sprintln(v)
 	defaultLogger.WriteContent(WARN, defaultCallerDepth, content)
 }
 
+// Warnf logs a formatted warning message
 func Warnf(format string, v ...interface{}) {
 	content := fmt.Sprintf(format, v)
 	defaultLogger.WriteContent(WARN, defaultCallerDepth, content)
 }
 
+// Error logs an error message
 func Error(v ...interface{}) {
 	content := fmt.Sprintln(v)
 	defaultLogger.WriteContent(ERROR, defaultCallerDepth, content)
 }
 
+// Errorf logs a formatted error message
 func Errorf(format string, v ...interface{}) {
 	content := fmt.Sprintf(format, v)
 	defaultLogger.WriteContent(ERROR, defaultCallerDepth, content)
 }
 
+// Fatal logs a fatal message and exits the program
 func Fatal(v ...interface{}) {
 	content := fmt.Sprintln(v)
 	defaultLogger.WriteContent(FATAL, defaultCallerDepth, content)
 	os.Exit(1)
 }
 
+// Fatalf logs a formatted fatal message and exits the program
 func Fatalf(format string, v ...interface{}) {
 	content := fmt.Sprintf(format, v)
 	defaultLogger.WriteContent(FATAL, defaultCallerDepth, content)

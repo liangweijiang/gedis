@@ -3,6 +3,7 @@ package tcpserver
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/liangweijiang/gedis/interfaces/network/tcp"
 	"github.com/liangweijiang/gedis/lib/logger"
 	"net"
@@ -51,6 +52,7 @@ func (s *TcpServer) Start() error {
 		return err
 	}
 	s.listener = listener
+	logger.Info(fmt.Sprintf("bind: %s, start listening...", s.conf.Address))
 	s.listenAndServe()
 	return nil
 }
@@ -60,6 +62,7 @@ func (s *TcpServer) listenAndServe() {
 	go func() {
 		select {
 		case <-s.quitCh:
+			logger.Error("listenAndServe quit")
 		case err := <-s.errCh:
 			logger.Errorf("listenAndServe error: %v", err)
 		}
