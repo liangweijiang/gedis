@@ -23,20 +23,6 @@ type shardMap struct {
 	mutex sync.RWMutex
 }
 
-// RandomKey returns a random key from the shard. If the shard is empty, it returns an empty string.
-func (shard *shardMap) RandomKey() string {
-	if shard == nil {
-		panic("shard is nil")
-	}
-	shard.mutex.RLock()
-	defer shard.mutex.RUnlock()
-
-	for key := range shard.m {
-		return key
-	}
-	return ""
-}
-
 // computeCapacity calculates the capacity of the shard, ensuring it is not less than 16 and is a power of 2.
 func computeCapacity(param int) int {
 	if param <= 16 {
@@ -179,6 +165,7 @@ func (dict *ConcurrentDict) Foreach(consumer func(key string, val interface{}) b
 	for _, shard := range dict.shards {
 		shard.mutex.RLock()
 		f := func() bool {
+			defer shard.mutex.RUnlock()
 			for k, v := range shard.m {
 				if !consumer(k, v) {
 					return false
@@ -238,6 +225,20 @@ func (dict *ConcurrentDict) RandomDistinctKeys(limit int) []string {
 	}
 
 	return result
+}
+
+// RandomKey returns a random key from the shard. If the shard is empty, it returns an empty string.
+func (shard *shardMap) RandomKey() string {
+	if shard == nil {
+		panic("shard is nil")
+	}
+	shard.mutex.RLock()
+	defer shard.mutex.RUnlock()
+
+	for key := range shard.m {
+		return key
+	}
+	return ""
 }
 
 // DictScan is used for incremental iteration of dictionary elements. (Not implemented)
