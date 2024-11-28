@@ -12,7 +12,7 @@ func main() {
 		WithColor: false,
 		WithJson:  true,
 	})
-	s := tcpserver.NewTcpSever(&tcpserver.Config{Address: "0.0.0.0:9999"}, tcpserver.NewEchoHandler())
+	s := tcpserver.NewSever(&tcpserver.Config{Address: "0.0.0.0:9999"}, tcpserver.NewEchoHandler())
 	err := s.Start()
 	if err != nil {
 		panic(err)

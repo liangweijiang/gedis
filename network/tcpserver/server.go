@@ -31,15 +31,42 @@ type TcpServer struct {
 	tcpHandler  tcp.Handler
 }
 
-// NewTcpSever creates and returns a new instance of TcpServer.
-func NewTcpSever(conf *Config, handler tcp.Handler) *TcpServer {
-	return &TcpServer{
-		conf:        conf,
+var server *TcpServer
+var serverOnce sync.Once
+
+func init() {
+	listener, err := net.Listen("tcp", "0.0.0.0:8899")
+	if err != nil {
+		logger.Errorf("listen error: %v", err)
+		return
+	}
+	server = &TcpServer{
+		listener:    listener,
+		conf:        &Config{Address: "0.0.0.0:8899"},
 		clientCount: 0,
+		waitDone:    sync.WaitGroup{},
 		quitCh:      make(chan os.Signal),
 		errCh:       make(chan error),
-		tcpHandler:  handler,
+		tcpHandler:  NewEchoHandler(),
 	}
+}
+
+// NewSever creates and returns a new instance of TcpServer.
+func NewSever(conf *Config, handler tcp.Handler) *TcpServer {
+	serverOnce.Do(func() {
+		server = &TcpServer{
+			conf:        conf,
+			clientCount: 0,
+			quitCh:      make(chan os.Signal),
+			errCh:       make(chan error),
+			tcpHandler:  handler,
+		}
+	})
+	return server
+}
+
+func GetClientCount() int64 {
+	return atomic.LoadInt64(&server.clientCount)
 }
 
 // Start initializes the server and begins listening for incoming connections.
