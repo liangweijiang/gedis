@@ -1,6 +1,6 @@
 package redis
 
-// Connection represents a connection with redis client
+// Connection represents a connection with access client
 type Connection interface {
 	Write([]byte) (int, error)
 	Close() error
@@ -10,4 +10,7 @@ type Connection interface {
 	GetPassword() string
 
 	InMultiState() bool
+
+	GetDBIndex() int
+	SelectDB(int)
 }

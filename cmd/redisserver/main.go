@@ -8,7 +8,7 @@ import (
 func main() {
 	logger.Setup(logger.Settings{
 		Path:      "./",
-		Name:      "redis",
+		Name:      "access",
 		WithColor: false,
 		WithJson:  true,
 	})

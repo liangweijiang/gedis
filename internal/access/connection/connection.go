@@ -11,6 +11,9 @@ var _ redis.Connection = &Connection{}
 type Connection struct {
 	conn     net.Conn
 	password string
+
+	// selected db
+	selectedDB int
 }
 
 var connPool = sync.Pool{
@@ -46,4 +49,12 @@ func (c *Connection) GetPassword() string {
 
 func (c *Connection) InMultiState() bool {
 	return false
+}
+
+func (c *Connection) GetDBIndex() int {
+	return c.selectedDB
+}
+
+func (c *Connection) SelectDB(idx int) {
+	c.selectedDB = idx
 }

@@ -11,7 +11,7 @@ const (
 	scorePositiveInf int8 = 1
 )
 
-// ScoreBorder is a struct represents `min` `max` parameter of redis command `ZRANGEBYSCORE`
+// ScoreBorder is a struct represents `min` `max` parameter of access command `ZRANGEBYSCORE`
 // can accept:
 //
 //	int or float value, such as 2.718, 2, -2.718, -2 ...

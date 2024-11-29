@@ -1,9 +1,10 @@
 package database
 
 import (
+	"context"
 	"fmt"
 	"github.com/liangweijiang/gedis/interfaces/redis"
-	"github.com/liangweijiang/gedis/internal/redis/protocol"
+	"github.com/liangweijiang/gedis/internal/access/protocol"
 	"github.com/liangweijiang/gedis/lib/logger"
 	"runtime/debug"
 	"strings"
@@ -16,9 +17,17 @@ const (
 )
 
 type Server struct {
-	dbSet []*atomic.Value
+	dbSet  []*atomic.Value
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	// configVersion stands for the version of slaveStatus config. Any change of master host/port will cause configVersion increment
+	// If configVersion change has been found during slaveStatus current slaveStatus procedure will stop.
+	// It is designed to abort a running slaveStatus procedure
+	configVersion int32
 	// for replication
-	role int32
+	role        int32
+	slaveStatus *slaveStatus
 }
 
 func (s *Server) Exec(c redis.Connection, cmdLine [][]byte) (result redis.Reply) {
@@ -50,8 +59,11 @@ func (s *Server) Exec(c redis.Connection, cmdLine [][]byte) (result redis.Reply)
 		if len(cmdLine) != 3 {
 			return protocol.NewArgNumErrReply("slaveof")
 		}
+		return SlaveOf(s, cmdLine[1:])
 	}
-	return SlaveOf(s, cmdLine[1:])
+	// todo special commands which cannot execute within transaction
+
+	return
 }
 
 func (s *Server) Close() {

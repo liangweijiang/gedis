@@ -4,6 +4,7 @@ import (
 	"github.com/liangweijiang/gedis/lib/utils"
 	"math"
 	"math/rand"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -54,14 +55,17 @@ func NewConcurrentDict(shardCount int) *ConcurrentDict {
 	}
 }
 
+func (dict *ConcurrentDict) getIndex(key string) uint32 {
+	hashCode := utils.Fnv32(key)
+	return (dict.shardCount - 1) & hashCode
+}
+
 // getShard selects the shard where the key belongs based on the hash value of the key.
 func (dict *ConcurrentDict) getShard(key string) *shardMap {
 	if dict == nil {
 		panic("dict is nil")
 	}
-	hashCode := utils.Fnv32(key)
-	index := (dict.shardCount - 1) & hashCode
-	return dict.shards[index]
+	return dict.shards[dict.getIndex(key)]
 }
 
 // Get retrieves the value associated with the key and indicates whether it exists.
@@ -255,4 +259,58 @@ func (dict *ConcurrentDict) addCount() int32 {
 // decreaseCount atomically decrements the element count of the dictionary.
 func (dict *ConcurrentDict) decreaseCount() int32 {
 	return atomic.AddInt32(&dict.count, -1)
+}
+
+func (dict *ConcurrentDict) toLockIndices(keys []string, reverse bool) []uint32 {
+	indexMap := make(map[uint32]struct{})
+	for _, key := range keys {
+		index := dict.getIndex(key)
+		indexMap[index] = struct{}{}
+	}
+	indices := make([]uint32, 0, len(keys))
+	for index := range indexMap {
+		indices = append(indices, index)
+	}
+	sort.Slice(indices, func(i, j int) bool {
+		if reverse {
+			return indices[i] > indices[j]
+		} else {
+			return indices[i] < indices[j]
+		}
+	})
+	return indices
+}
+
+func (dict *ConcurrentDict) RWLocks(writeKeys []string, readKeys []string) {
+	writeKeys = append(writeKeys, readKeys...)
+	indices := dict.toLockIndices(writeKeys, false)
+	writeIndexSet := make(map[uint32]struct{})
+	for _, wKey := range writeKeys {
+		index := dict.getIndex(wKey)
+		writeIndexSet[index] = struct{}{}
+	}
+	for _, index := range indices {
+		if _, ok := writeIndexSet[index]; ok {
+			dict.shards[index].mutex.Lock()
+		} else {
+			dict.shards[index].mutex.RLock()
+		}
+	}
+}
+
+func (dict *ConcurrentDict) RWUnlocks(writeKeys []string, readKeys []string) {
+	writeKeys = append(writeKeys, readKeys...)
+	indices := dict.toLockIndices(writeKeys, true)
+	writeIndexSet := make(map[uint32]struct{})
+	for _, wKey := range writeKeys {
+		index := dict.getIndex(wKey)
+		writeIndexSet[index] = struct{}{}
+	}
+	for _, index := range indices {
+		if _, ok := writeIndexSet[index]; ok {
+			dict.shards[index].mutex.Unlock()
+		} else {
+			dict.shards[index].mutex.RUnlock()
+		}
+	}
 }

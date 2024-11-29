@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/liangweijiang/gedis/interfaces/redis"
-	"github.com/liangweijiang/gedis/internal/redis/protocol"
+	"github.com/liangweijiang/gedis/internal/access/protocol"
 	"github.com/liangweijiang/gedis/lib/logger"
 	"io"
 	"runtime/debug"
@@ -52,7 +52,7 @@ func parse(r io.Reader, out chan<- *Payload) {
 //
 // Returns:
 //
-//	redis.Reply: The parsed Redis reply.
+//	access.Reply: The parsed Redis reply.
 //	error: An error if the parsing fails.
 func parseReply(reader *bufio.Reader) (redis.Reply, error) {
 	line, err := reader.ReadBytes('\n')
@@ -102,7 +102,7 @@ func parseReply(reader *bufio.Reader) (redis.Reply, error) {
 //
 // Returns:
 //
-//	redis.Reply: The parsed bulk string reply.
+//	access.Reply: The parsed bulk string reply.
 //	error: An error if the parsing fails.
 func parseBulkString(reader *bufio.Reader, header []byte) (redis.Reply, error) {
 	strLen, err := strconv.Atoi(string(header[1:]))
@@ -136,7 +136,7 @@ func parseBulkString(reader *bufio.Reader, header []byte) (redis.Reply, error) {
 //
 // Returns:
 //
-//	redis.Reply: The parsed array reply.
+//	access.Reply: The parsed array reply.
 //	error: An error if the parsing fails.
 func parseArray(reader *bufio.Reader, header []byte) (redis.Reply, error) {
 	arrLen, err := strconv.Atoi(string(header[1:]))

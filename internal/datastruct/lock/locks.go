@@ -64,9 +64,13 @@ func (l *Locks) getMutex(key string) *sync.RWMutex {
 //
 //	A slice of mutex indices.
 func (l *Locks) toLockIndices(keys []string, reverse bool) []uint32 {
-	indices := make([]uint32, 0, len(keys))
+	indexMap := make(map[uint32]struct{})
 	for _, key := range keys {
 		index := l.getIndex(key)
+		indexMap[index] = struct{}{}
+	}
+	indices := make([]uint32, 0, len(keys))
+	for index := range indexMap {
 		indices = append(indices, index)
 	}
 	sort.Slice(indices, func(i, j int) bool {

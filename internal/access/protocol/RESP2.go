@@ -12,7 +12,7 @@ import (
 
 var (
 
-	// CRLF is the line separator of redis serialization protocol
+	// CRLF is the line separator of access serialization protocol
 	CRLF            = "\r\n"
 	nullBulkBytes   = []byte("$-1\r\n")
 	emptyArrayBytes = []byte("*0\r\n")

@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"github.com/liangweijiang/gedis/config"
 	"github.com/liangweijiang/gedis/interfaces/redis"
-	"github.com/liangweijiang/gedis/internal/redis/protocol"
+	"github.com/liangweijiang/gedis/internal/access/protocol"
+	"github.com/liangweijiang/gedis/lib/logger"
 	"github.com/liangweijiang/gedis/network/tcpserver"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -79,6 +82,18 @@ func SlaveOf(s *Server, args [][]byte) redis.Reply {
 	if strings.ToLower(string(args[0])) == "no" && strings.ToLower(string(args[1])) == "one" {
 		return protocol.NewSimpleStringReply("OK")
 	}
+	host := string(args[0])
+	port, err := strconv.Atoi(string(args[1]))
+	if err != nil {
+		logger.Errorf("parse port failed")
+		return protocol.NewSimpleErrorReply("ERR value is not an integer or out of range")
+	}
+	s.slaveStatus.mutex.Lock()
+	atomic.StoreInt32(&s.role, slaveRole)
+	s.slaveStatus.masterHost = host
+	s.slaveStatus.masterPort = port
+	s.slaveStatus.mutex.Unlock()
+	go s.slaveStatus.setupMaster()
 	return protocol.NewSimpleStringReply("OK")
 }
 
